@@ -47,37 +47,35 @@ export async function handleSlaWebhook(webhookData) {
     const slaStatus = slaCalculator.getSlaStatus(slaResult.deadline);
     console.log(`📊 Status inicial: ${slaStatus}`);
 
-    // 5. Formata datas para exibição (formato brasileiro)
-    const formatDate = (dateTime) => {
-      const day = String(dateTime.day).padStart(2, '0');
-      const month = String(dateTime.month).padStart(2, '0');
-      const year = dateTime.year;
-      const hours = String(dateTime.hour).padStart(2, '0');
-      const minutes = String(dateTime.minute).padStart(2, '0');
-      return `${day}/${month}/${year} ${hours}:${minutes}`;
-    };
+    // 5. Formata datas para ISO-8601 (formato requerido pelo Pipefy para datetime)
+    // Formato: YYYY-MM-DDTHH:mm:ssZ
+    const slaInicio = slaResult.start.toISO();
+    const slaDeadline = slaResult.deadline.toISO();
 
-    const slaInicio = formatDate(slaResult.start);
-    const slaDeadline = formatDate(slaResult.deadline);
+    // Também cria versões para exibição (brasileiro)
+    const slaInicioDisplay = slaResult.start.toFormat('dd/MM/yyyy HH:mm');
+    const slaDeadlineDisplay = slaResult.deadline.toFormat('dd/MM/yyyy HH:mm');
 
     console.log(`✅ SLA calculado com sucesso!`);
-    console.log(`   Início: ${slaInicio}`);
-    console.log(`   Deadline: ${slaDeadline}`);
+    console.log(`   Início: ${slaInicioDisplay} (ISO: ${slaInicio})`);
+    console.log(`   Deadline: ${slaDeadlineDisplay} (ISO: ${slaDeadline})`);
     console.log(`   Status: ${slaStatus}`);
 
     // 6. Retorna resposta para o Pipefy preencher automaticamente
-    // O Pipefy usará esses valores para preencher os campos de texto
+    // Usando formato ISO-8601 para campos datetime/due_date
     console.log('📤 Retornando resposta para Pipefy preencher campos automaticamente...');
     
     return {
       success: true,
       cardId: card_id,
-      sla_inicio: slaInicio,
-      sla_deadline: slaDeadline,
+      sla_inicio: slaInicio,              // ISO-8601 para campo datetime
+      sla_deadline: slaDeadline,          // ISO-8601 para campo due_date
+      sla_inicio_display: slaInicioDisplay, // Formato brasileiro para texto
+      sla_deadline_display: slaDeadlineDisplay, // Formato brasileiro para texto
       sla_status: slaStatus,
       sla_dias_uteis: slaResult.businessDays,
       sla_horas_comerciais: slaResult.totalHours,
-      message: `SLA calculado: ${slaInicio} até ${slaDeadline}`
+      message: `SLA calculado: ${slaInicioDisplay} até ${slaDeadlineDisplay}`
     };
 
   } catch (error) {
