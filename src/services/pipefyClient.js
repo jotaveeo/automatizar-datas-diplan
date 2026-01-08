@@ -85,9 +85,11 @@ class PipefyClient {
         let formattedValue = field.value;
         
         // Se for uma data ISO, converte para formato aceito pelo Pipefy
+        // Formato documentado: "YYYY-MM-DD HH:MM:SS" (ISO 8601 sem timezone)
         if (typeof field.value === 'string' && field.value.match(/^\d{4}-\d{2}-\d{2}T/)) {
-          // Remove timezone e milissegundos para formato simples YYYY-MM-DD HH:mm
-          formattedValue = field.value.split('.')[0].replace('T', ' ');
+          // Extrai YYYY-MM-DDTHH:mm:ss e converte para YYYY-MM-DD HH:mm:ss
+          const isoWithoutTz = field.value.substring(0, 19); // Remove timezone e milissegundos
+          formattedValue = isoWithoutTz.replace('T', ' '); // Substitui T por espaço
         }
 
         const singleFieldMutation = `
