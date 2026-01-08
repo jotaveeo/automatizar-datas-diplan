@@ -47,45 +47,37 @@ export async function handleSlaWebhook(webhookData) {
     const slaStatus = slaCalculator.getSlaStatus(slaResult.deadline);
     console.log(`📊 Status inicial: ${slaStatus}`);
 
-    // 5. Prepara dados para atualização
-    const slaData = {
-      start: slaCalculator.formatForPipefy(slaResult.start),
-      deadline: slaCalculator.formatForPipefy(slaResult.deadline),
-      status: slaStatus
+    // 5. Formata datas para exibição (formato brasileiro)
+    const formatDate = (dateTime) => {
+      const day = String(dateTime.day).padStart(2, '0');
+      const month = String(dateTime.month).padStart(2, '0');
+      const year = dateTime.year;
+      const hours = String(dateTime.hour).padStart(2, '0');
+      const minutes = String(dateTime.minute).padStart(2, '0');
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
     };
 
-    // 6. Atualiza campos no Pipefy
-    console.log('💾 Atualizando campos no Pipefy...');
-    const updateResult = await pipefyClient.updateSlaFields(card_id, slaData);
+    const slaInicio = formatDate(slaResult.start);
+    const slaDeadline = formatDate(slaResult.deadline);
 
-    if (!updateResult.success) {
-      console.warn('⚠️ Alguns campos não foram atualizados:', updateResult.results);
-    } else {
-      console.log('✅ Todos os campos atualizados com sucesso!');
-    }
+    console.log(`✅ SLA calculado com sucesso!`);
+    console.log(`   Início: ${slaInicio}`);
+    console.log(`   Deadline: ${slaDeadline}`);
+    console.log(`   Status: ${slaStatus}`);
 
-    // 7. (Opcional) Cria comentário para auditoria
-    if (config.nodeEnv === 'development') {
-      const comment = `🤖 SLA calculado automaticamente:\n` +
-        `• Início: ${slaResult.start.toFormat('dd/MM/yyyy HH:mm')}\n` +
-        `• Prazo: ${slaResult.deadline.toFormat('dd/MM/yyyy HH:mm')}\n` +
-        `• Status: ${slaStatus}`;
-      
-      await pipefyClient.createComment(card_id, comment);
-    }
-
-    // 8. Retorna resposta de sucesso
+    // 6. Retorna resposta para o Pipefy preencher automaticamente
+    // O Pipefy usará esses valores para preencher os campos de texto
+    console.log('📤 Retornando resposta para Pipefy preencher campos automaticamente...');
+    
     return {
       success: true,
       cardId: card_id,
-      sla: {
-        start: slaResult.start.toISO(),
-        deadline: slaResult.deadline.toISO(),
-        status: slaStatus,
-        businessDays: slaResult.businessDays,
-        totalHours: slaResult.totalHours
-      },
-      updateResult
+      sla_inicio: slaInicio,
+      sla_deadline: slaDeadline,
+      sla_status: slaStatus,
+      sla_dias_uteis: slaResult.businessDays,
+      sla_horas_comerciais: slaResult.totalHours,
+      message: `SLA calculado: ${slaInicio} até ${slaDeadline}`
     };
 
   } catch (error) {
