@@ -17,15 +17,22 @@ if (config.nodeEnv === 'development') {
 
 /**
  * Middleware de autenticação via token
+ * Aceita token no header (X-Webhook-Token) ou no body (webhook_token)
  */
 function authenticateWebhook(req, res, next) {
-  const token = req.headers['x-webhook-token'];
+  // Tenta pegar token do header primeiro
+  let token = req.headers['x-webhook-token'];
+  
+  // Se não encontrar no header, tenta no body
+  if (!token && req.body && req.body.webhook_token) {
+    token = req.body.webhook_token;
+  }
 
   if (!token) {
     return res.status(401).json({
       success: false,
       error: 'Token de autenticação ausente',
-      message: 'Envie o header X-Webhook-Token'
+      message: 'Envie o header X-Webhook-Token ou o campo webhook_token no body'
     });
   }
 
