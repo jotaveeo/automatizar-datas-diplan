@@ -54,91 +54,83 @@ class PipefyClient {
   }
 
   /**
-   * Atualiza campos de um card
+   * Atualiza campos de um card usando updateFieldsValues
+   * Esta mutation é recomendada pela documentação oficial do Pipefy
    * @param {string} cardId - ID do card
    * @param {Array} fieldUpdates - Array de { fieldId, value }
    * @returns {Promise<Object>} Card atualizado
    */
   async updateCardFields(cardId, fieldUpdates) {
+    // Prepara os valores para a mutation updateFieldsValues
+    const values = fieldUpdates.map(field => {
+      let formattedValue = field.value;
+      
+      // Se for uma data ISO, converte para formato DD/MM/YYYY HH:mm
+      if (typeof field.value === 'string' && field.value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+        const date = new Date(field.value);
+        
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        formattedValue = `${day}/${month}/${year} ${hours}:${minutes}`;
+      }
+      
+      return {
+        fieldId: field.fieldId,
+        value: formattedValue
+      };
+    });
+
+    // Mutation updateFieldsValues conforme documentação do Pipefy
     const mutation = `
-      mutation UpdateCardFields($cardId: ID!, $fields: [UpdateFieldValueInput!]!) {
-        updateCardField(input: { 
-          card_id: $cardId,
-          field_id: $fields[0].field_id,
-          new_value: $fields[0].new_value
+      mutation UpdateFieldsValues($nodeId: ID!, $values: [UpdateFieldValueInput!]!) {
+        updateFieldsValues(input: {
+          nodeId: $nodeId,
+          values: $values
         }) {
-          card {
-            id
-            title
-          }
           success
         }
       }
     `;
 
-    // Pipefy API só atualiza um campo por vez, então faremos múltiplas chamadas
-    const results = [];
+    try {
+      console.log(`📝 Atualizando ${values.length} campos com updateFieldsValues...`);
+      console.log(`   Card ID: ${cardId}`);
+      console.log(`   Valores:`, JSON.stringify(values, null, 2));
 
-    for (const field of fieldUpdates) {
-      try {
-        // Formata valor dependendo do tipo
-        let formattedValue = field.value;
-        
-        // Se for uma data ISO, converte para formato aceito pelo Pipefy datetime fields
-        // Formato requerido: "DD/MM/YYYY HH:MM" (24 horas)
-        if (typeof field.value === 'string' && field.value.match(/^\d{4}-\d{2}-\d{2}T/)) {
-          // Parse da data ISO
-          const date = new Date(field.value);
-          
-          // Formata para DD/MM/YYYY HH:mm
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const year = date.getFullYear();
-          const hours = String(date.getHours()).padStart(2, '0');
-          const minutes = String(date.getMinutes()).padStart(2, '0');
-          
-          formattedValue = `${day}/${month}/${year} ${hours}:${minutes}`;
-        }
+      const data = await this.client.request(mutation, {
+        nodeId: cardId,
+        values: values
+      });
 
-        const singleFieldMutation = `
-          mutation UpdateCardField($cardId: ID!, $fieldId: ID!, $value: String!) {
-            updateCardField(input: { 
-              card_id: $cardId,
-              field_id: $fieldId,
-              new_value: $value
-            }) {
-              card {
-                id
-                title
-              }
-              success
-            }
-          }
-        `;
-
-        const data = await this.client.request(singleFieldMutation, {
-          cardId,
-          fieldId: field.fieldId,
-          value: formattedValue
-        });
-
-        results.push({
-          fieldId: field.fieldId,
-          success: data.updateCardField.success
-        });
-
-        console.log(`✅ Campo ${field.fieldId} atualizado com sucesso`);
-      } catch (error) {
-        console.error(`❌ Erro ao atualizar campo ${field.fieldId}:`, error);
-        results.push({
-          fieldId: field.fieldId,
+      if (data.updateFieldsValues.success) {
+        console.log('✅ Campos atualizados com sucesso via updateFieldsValues!');
+        return values.map(v => ({
+          fieldId: v.fieldId,
+          success: true
+        }));
+      } else {
+        console.warn('⚠️ updateFieldsValues retornou success: false');
+        return values.map(v => ({
+          fieldId: v.fieldId,
           success: false,
-          error: error.message
-        });
+          error: 'Mutation returned success: false'
+        }));
       }
-    }
 
-    return results;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar campos com updateFieldsValues:', error);
+      
+      // Retorna erro para todos os campos
+      return values.map(v => ({
+        fieldId: v.fieldId,
+        success: false,
+        error: error.message
+      }));
+    }
   }
 
   /**
