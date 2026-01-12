@@ -52,26 +52,34 @@ export async function handleSlaWebhook(webhookData) {
     const slaInicio = slaResult.start.toISO();
     const slaDeadline = slaResult.deadline.toISO();
 
-    // Também cria versões para exibição (brasileiro)
+    // Formato brasileiro para exibição (dd/MM/yyyy HH:mm)
     const slaInicioDisplay = slaResult.start.toFormat('dd/MM/yyyy HH:mm');
     const slaDeadlineDisplay = slaResult.deadline.toFormat('dd/MM/yyyy HH:mm');
 
+    // Formato específico do campo datetime do Pipefy (DD/MM/AAAA, HH:mm)
+    const slaInicioPipefy = slaResult.start.toFormat('dd/MM/yyyy, HH:mm');
+    const slaDeadlinePipefy = slaResult.deadline.toFormat('dd/MM/yyyy, HH:mm');
+
     console.log(`✅ SLA calculado com sucesso!`);
     console.log(`   Início: ${slaInicioDisplay} (ISO: ${slaInicio})`);
+    console.log(`   Pipefy: ${slaInicioPipefy}`);
     console.log(`   Deadline: ${slaDeadlineDisplay} (ISO: ${slaDeadline})`);
+    console.log(`   Pipefy: ${slaDeadlinePipefy}`);
     console.log(`   Status: ${slaStatus}`);
 
     // 6. Retorna resposta para o Pipefy preencher automaticamente
-    // Usando formato ISO-8601 para campos datetime/due_date
+    // Múltiplos formatos para diferentes tipos de campo
     console.log('📤 Retornando resposta para Pipefy preencher campos automaticamente...');
     
     return {
       success: true,
       cardId: card_id,
-      sla_inicio: slaInicio,              // ISO-8601 para campo datetime
-      sla_deadline: slaDeadline,          // ISO-8601 para campo due_date
-      sla_inicio_display: slaInicioDisplay, // Formato brasileiro para texto
-      sla_deadline_display: slaDeadlineDisplay, // Formato brasileiro para texto
+      sla_inicio: slaInicio,                    // ISO-8601: 2026-01-12T01:25:00-03:00
+      sla_deadline: slaDeadline,                // ISO-8601: 2026-01-16T01:25:00-03:00
+      sla_inicio_pipefy: slaInicioPipefy,       // Pipefy: 12/01/2026, 01:25
+      sla_deadline_pipefy: slaDeadlinePipefy,   // Pipefy: 16/01/2026, 01:25
+      sla_inicio_display: slaInicioDisplay,     // Display: 12/01/2026 01:25
+      sla_deadline_display: slaDeadlineDisplay, // Display: 16/01/2026 01:25
       sla_status: slaStatus,
       sla_dias_uteis: slaResult.businessDays,
       sla_horas_comerciais: slaResult.totalHours,
